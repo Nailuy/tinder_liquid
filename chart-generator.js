@@ -2,7 +2,7 @@
 export function initChart(canvas, trend) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width = canvas.parentElement.offsetWidth;
-    const height = canvas.height = 160;
+    const height = canvas.height = canvas.parentElement.offsetHeight;
 
     // Grid
     drawGrid(ctx, width, height);
