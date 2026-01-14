@@ -15,14 +15,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = "AIzaSyCGDjNNZq56ZZZsfFnNaYqP7LjJKKwmu2s";
   if (!apiKey) {
-    return res.status(500).json({ error: 'Missing GEMINI_API_KEY in environment variables' });
+    return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `Generate JSON. Role: Crypto Market Maker.
             Scenario: 1 sentence news (Ukrainian). Real tokens (BTC/ETH/Liquid).
