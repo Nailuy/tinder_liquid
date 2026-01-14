@@ -22,6 +22,7 @@
         * {
             box-sizing: border-box;
             user-select: none;
+            cursor: url('./SVG/cursor.png') 16 16, auto !important;
         }
 
         body,
@@ -524,7 +525,7 @@
 
     <script type="module">
         import { SCENARIOS } from './scenarios.js';
-        import { drawChart } from './chart-generator.js';
+        import { initChart, appendCandle } from './chart-generator.js';
 
         // --- 1. THREE.JS BACKGROUND ---
         const canvas = document.querySelector('#webgl-canvas');
@@ -581,15 +582,12 @@
                     const item = data.find(d => d.symbol === t);
                     if (item) {
                         const price = parseFloat(item.price).toFixed(2);
-                        // Random cosmetic change arrow (Not real history)
                         const color = Math.random() > 0.5 ? 'color:var(--accent-green)' : 'color:var(--accent-red)';
                         tickerSet += `<div class="ticker-item"><span class="symbol">${t.replace('USDT', '')}</span><span style="${color}">$${price}</span></div>`;
                     }
                 });
 
-                // Duplicate content for infinite scroll (Set 1 + Set 2)
                 const fullContent = tickerSet + tickerSet;
-
                 if (document.getElementById('ticker-content')) document.getElementById('ticker-content').innerHTML = fullContent;
             } catch (e) { }
         }
@@ -617,7 +615,7 @@
         setInterval(updateOrderBook, 500);
 
         // --- 4. GAME LOGIC ---
-        let gameState = { scenario: null, streak: 0, pnl: 0, timer: null };
+        let gameState = { scenario: null, streak: 0, pnl: 0, timer: null, chartState: null, isAnimating: false };
 
         const els = {
             headline: document.getElementById('headline'),
@@ -632,11 +630,13 @@
         };
 
         window.resetGame = () => {
+            if (gameState.isAnimating) return;
+
             els.overlay.classList.add('hidden');
             gsap.to(els.controls, { opacity: 1, pointerEvents: 'all' });
 
             els.headline.innerHTML = `<span style="color:var(--accent-cyan)">SCANNING MARKETS...</span>`;
-            if (els.chartCanvas) {
+            if (els.chartCanvas && els.chartCanvas.getContext) {
                 const ctx = els.chartCanvas.getContext('2d');
                 ctx.clearRect(0, 0, els.chartCanvas.width, els.chartCanvas.height);
             }
@@ -648,7 +648,9 @@
                 els.headline.innerText = gameState.scenario.headline;
                 els.headline.style.color = "white";
 
-                drawChart(els.chartCanvas, randomScenario.move);
+                // Initialize Chart
+                gameState.chartState = initChart(els.chartCanvas, randomScenario.move);
+
                 startTimer();
             }, 600);
         };
@@ -667,19 +669,31 @@
         }
 
         window.handleInteract = (choice) => {
+            if (gameState.isAnimating) return;
             clearInterval(gameState.timer);
-            const dir = choice === 'LONG' ? 120 : -120;
-            const rot = choice === 'LONG' ? 15 : -15;
+            gameState.isAnimating = true;
 
-            gsap.to(els.card, {
-                x: dir, rotation: rot, duration: 0.2, yoyo: true, repeat: 1,
-                onComplete: () => { endGame(choice === gameState.scenario.move); }
-            });
+            gsap.to(els.controls, { opacity: 0.5, pointerEvents: 'none' });
+
+            const isWin = (choice === gameState.scenario.move);
+            const direction = gameState.scenario.move === 'LONG' ? 1 : -1;
+
+            let frame = 0;
+            const totalFrames = 30;
+
+            const animInterval = setInterval(() => {
+                frame++;
+                gameState.chartState = appendCandle(gameState.chartState, direction);
+
+                if (frame >= totalFrames) {
+                    clearInterval(animInterval);
+                    gameState.isAnimating = false;
+                    endGame(isWin);
+                }
+            }, 50);
         };
 
         function endGame(isWin, reason) {
-            gsap.to(els.controls, { opacity: 0.2, pointerEvents: 'none' });
-
             if (isWin) {
                 gameState.streak++;
                 gameState.pnl += Math.floor(Math.random() * 2000) + 500;
@@ -696,10 +710,8 @@
             els.streak.innerText = gameState.streak;
             els.pnl.innerText = "$" + gameState.pnl;
 
-            setTimeout(() => {
-                els.overlay.classList.remove('hidden');
-                gsap.delayedCall(1, () => material.color.setHex(0x00F0FF));
-            }, 400);
+            els.overlay.classList.remove('hidden');
+            gsap.delayedCall(1, () => material.color.setHex(0x00F0FF));
         }
 
         window.shareResult = () => {
