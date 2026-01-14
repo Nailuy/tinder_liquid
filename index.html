@@ -493,6 +493,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
 <script type="module">
+    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+    import { SCENARIOS } from './scenarios.js';
+
     // --- 1. THREE.JS BACKGROUND (The "Liquid" Effect) ---
     const canvas = document.querySelector('#webgl-canvas');
     const scene = new THREE.Scene();
@@ -599,8 +602,7 @@
     fetchMarketData();
     setInterval(fetchMarketData, 10000); // Update every 10s
 
-    // --- 3. GAME LOGIC (Serverless) ---
-    // NO API KEY HERE :)
+    // --- 3. GAME LOGIC (STATIC SCENARIOS) ---
 
     let gameState = { scenario: null, streak: 0, pnl: 0, timer: null };
 
@@ -616,33 +618,25 @@
         card: document.getElementById('game-card')
     };
 
-    window.resetGame = async () => {
+    window.resetGame = () => {
         els.overlay.classList.add('hidden');
         gsap.to(els.controls, { opacity: 1, pointerEvents: 'all' });
 
-        els.headline.innerText = "UPLOADING TO CHAIN...";
+        els.headline.innerText = "SEARCHING LIQUIDITY...";
         els.headline.style.color = "white";
         document.getElementById('scenario-id').innerText = Math.floor(Math.random() * 9999);
 
-        try {
-            // Call Vercel Serverless Function
-            const res = await fetch('/api/generate');
-
-            if (!res.ok) throw new Error('API Request Failed');
-
-            const data = await res.json();
-            gameState.scenario = data;
+        // Artificial delay for realism
+        setTimeout(() => {
+            const randomScenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+            gameState.scenario = randomScenario;
 
             // Text Glitch Effect Entry
             els.headline.innerText = gameState.scenario.headline;
             gsap.from(els.headline, { duration: 0.5, opacity: 0, x: -20, ease: "power2.out" });
 
             startTimer();
-        } catch (e) {
-            console.error("Game Loop Error:", e);
-            els.headline.innerText = "CONNECTION LOST. RETRYING...";
-            setTimeout(resetGame, 3000);
-        }
+        }, 500);
     };
 
     function startTimer() {
