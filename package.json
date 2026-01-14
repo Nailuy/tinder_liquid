@@ -1,6 +1,7 @@
 {
   "name": "liquid-narrative",
   "version": "1.0.0",
+  "type": "module",
   "description": "High-fidelity DeFi trading simulator",
   "main": "index.html",
   "scripts": {
