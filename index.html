@@ -453,7 +453,6 @@
             <div class="brand">
                 <img src="./SVG/Full-Logo-Offwhite.svg" alt="LIQUID" class="brand-logo"
                     onerror="this.style.display='none'">
-                <span class="brand-name">LIQUID <span class="tag">TERMINAL_V2</span></span>
             </div>
             <div class="hud-stats">
                 <div class="stat-box">
@@ -463,15 +462,6 @@
                 <div class="stat-box">
                     <span class="label">P&L</span>
                     <span class="value" id="pnl-val">$0</span>
-                </div>
-                <!-- Desktop Only Stats -->
-                <div class="stat-box desktop-only">
-                    <span class="label">DEPT. ID</span>
-                    <span class="value" id="scenario-id">8849</span>
-                </div>
-                <div class="stat-box desktop-only">
-                    <span class="label">GAS</span>
-                    <span class="value" id="fee-val">--</span> <span class="unit">sat/vB</span>
                 </div>
             </div>
         </header>
@@ -584,21 +574,26 @@
             try {
                 const res = await fetch('https://api.binance.com/api/v3/ticker/price');
                 const data = await res.json();
-                const targets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT', 'XRPUSDT', 'ADAUSDT', 'AVAXUSDT'];
-                let items = '';
-                for (let i = 0; i < 4; i++) {
-                    data.forEach(d => {
-                        if (targets.includes(d.symbol)) {
-                            const price = parseFloat(d.price).toFixed(2);
-                            const color = Math.random() > 0.5 ? 'color:var(--accent-green)' : 'color:var(--accent-red)';
-                            items += `<div class="ticker-item"><span class="symbol">${d.symbol.replace('USDT', '')}</span><span style="${color}">$${price}</span></div>`;
-                        }
-                    });
-                }
-                if (document.getElementById('ticker-content')) document.getElementById('ticker-content').innerHTML = items;
+                const targets = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT', 'XRPUSDT', 'ADAUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'SHIBUSDT'];
+
+                let tickerSet = '';
+                targets.forEach(t => {
+                    const item = data.find(d => d.symbol === t);
+                    if (item) {
+                        const price = parseFloat(item.price).toFixed(2);
+                        // Random cosmetic change arrow (Not real history)
+                        const color = Math.random() > 0.5 ? 'color:var(--accent-green)' : 'color:var(--accent-red)';
+                        tickerSet += `<div class="ticker-item"><span class="symbol">${t.replace('USDT', '')}</span><span style="${color}">$${price}</span></div>`;
+                    }
+                });
+
+                // Duplicate content for infinite scroll (Set 1 + Set 2)
+                const fullContent = tickerSet + tickerSet;
+
+                if (document.getElementById('ticker-content')) document.getElementById('ticker-content').innerHTML = fullContent;
             } catch (e) { }
         }
-        fetchMarketData(); setInterval(fetchMarketData, 5000);
+        fetchMarketData(); setInterval(fetchMarketData, 10000);
 
         // --- 3. ORDER BOOK ---
         function updateOrderBook() {
