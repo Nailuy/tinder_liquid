@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `Generate JSON. Role: Crypto Market Maker.
             Scenario: 1 sentence news (Ukrainian). Real tokens (BTC/ETH/Liquid).
@@ -32,10 +32,10 @@ export default async function handler(req, res) {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text().replace(/```json|```/g, '').trim();
-    
+
     // Ensure valid JSON
     const json = JSON.parse(text);
-    
+
     return res.status(200).json(json);
   } catch (error) {
     console.error('Gemini API Error:', error);
