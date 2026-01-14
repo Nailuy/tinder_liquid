@@ -52,16 +52,36 @@ export function appendCandle(state, direction) {
     let open = state.currentPrice;
     let close = state.currentPrice - move; // Y inverted
 
-    // Keep largely within bounds but allow breakouts
-    if (close < 10) close = 10;
-    if (close > height - 10) close = height - 10;
+    // "Camera Follow" Logic
+    // If price goes too high (near 0) or too low (near height), shift everything
+    const margin = 40;
+    let shiftY = 0;
+
+    if (close < margin) {
+        shiftY = margin - close;
+    } else if (close > height - margin) {
+        shiftY = (height - margin) - close;
+    }
+
+    if (shiftY !== 0) {
+        // Shift entire chart history
+        candles.forEach(c => {
+            c.open += shiftY;
+            c.close += shiftY;
+            c.high += shiftY;
+            c.low += shiftY;
+        });
+        state.currentPrice += shiftY;
+        open += shiftY;
+        close += shiftY;
+    }
 
     let high = Math.min(open, close) - Math.random() * 5;
     let low = Math.max(open, close) + Math.random() * 5;
 
     const nextX = candles[candles.length - 1].x + candleWidth + gap;
 
-    // Shift if out of view
+    // Shift Horizontal if out of view
     if (nextX > width - 10) {
         candles.shift();
         candles.forEach(c => c.x -= (candleWidth + gap));
