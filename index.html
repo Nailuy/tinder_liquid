@@ -738,12 +738,35 @@
             }, 50);
         };
 
+        // --- 5. ROLES & SHARE LOGIC ---
+        const ROLES = [
+            { threshold: 100000, title: "🦁 CITADEL INSIDER", icon: "🦁" },
+            { threshold: 50000, title: "🐳 MARKET WHALE", icon: "🐳" },
+            { threshold: 10000, title: "🧠 SMART MONEY", icon: "🧠" },
+            { threshold: 5000, title: "💎 DIAMOND HANDS", icon: "💎" },
+            { threshold: 1000, title: "🎲 DEGEN", icon: "🎲" },
+            { threshold: 0, title: "🦐 PLANKTON", icon: "🦐" },
+            { threshold: -1000, title: "🧻 PAPER HANDS", icon: "🧻" },
+            { threshold: -5000, title: "💧 EXIT LIQUIDITY", icon: "💧" },
+            { threshold: -10000, title: "🍔 MCDONALD'S INTERN", icon: "🍔" },
+            { threshold: -9999999, title: "📉 FTX INVESTOR", icon: "📉" }
+        ];
+
+        function getRole(pnl) {
+            return ROLES.find(r => pnl >= r.threshold) || ROLES[ROLES.length - 1];
+        }
+
         function endGame(isWin, reason) {
             // Prevent multiple calls
             clearInterval(gameState.timer);
             gameState.gameEnded = true;
 
             gsap.to(els.controls, { opacity: 0.2, pointerEvents: 'none' });
+
+            const role = getRole(gameState.pnl);
+
+            // Update Overlay Content
+            let outputHTML = '';
 
             if (reason === "TIMEOUT") {
                 // Timeout state
@@ -752,21 +775,37 @@
                 els.resTitle.innerHTML = `<span class="timeout-color">TIME'S UP</span>`;
                 els.resMascot.src = './SVG/resting.png';
                 material.color.setHex(0xFFD700);
-                document.getElementById('res-desc').innerText = "You hesitated. The market waits for no one.";
+                outputHTML = `<div style="font-size:16px; margin-bottom:5px; color:#FFD700; font-weight:bold;">${role.title}</div>
+                              <div class="res-msg">You hesitated. The market waits for no one.</div>`;
             } else if (isWin) {
                 gameState.streak++;
                 gameState.pnl += Math.floor(Math.random() * 2000) + 500;
                 els.resTitle.innerHTML = `<span class="win-color">PROFIT ${gameState.scenario.roi}</span>`;
                 els.resMascot.src = './SVG/running.png';
                 material.color.setHex(0x00FFA3);
-                document.getElementById('res-desc').innerText = gameState.scenario.msg;
+                outputHTML = `<div style="font-size:16px; margin-bottom:5px; color:#00FFA3; font-weight:bold;">${role.title}</div>
+                              <div class="res-msg">${gameState.scenario.msg}</div>`;
             } else {
                 gameState.streak = 0;
                 gameState.pnl -= 1000;
                 els.resTitle.innerHTML = `<span class="lose-color">REKT</span>`;
                 els.resMascot.src = './SVG/sitting.png';
                 material.color.setHex(0xFF2A6D);
-                document.getElementById('res-desc').innerText = gameState.scenario.msg;
+                outputHTML = `<div style="font-size:16px; margin-bottom:5px; color:#FF2A6D; font-weight:bold;">${role.title}</div>
+                              <div class="res-msg">${gameState.scenario.msg}</div>`;
+            }
+
+            // Update DOM
+            const descContainer = document.getElementById('res-desc-container');
+            if (descContainer) {
+                descContainer.innerHTML = outputHTML;
+            } else {
+                // Create container if missing (fallback)
+                const p = document.getElementById('res-desc');
+                const cont = document.createElement('div');
+                cont.id = 'res-desc-container';
+                cont.innerHTML = outputHTML;
+                p.replaceWith(cont);
             }
 
             els.streak.innerText = gameState.streak;
@@ -777,7 +816,11 @@
         }
 
         window.shareResult = () => {
-            const txt = `I made $${gameState.pnl} on Liquid Terminal. Beat me:`;
+            const role = getRole(gameState.pnl);
+            const pnlFormatted = (gameState.pnl >= 0 ? "+" : "") + "$" + gameState.pnl;
+
+            const txt = `💸 TRADING REPORT 💸\n\nBalance: ${pnlFormatted}\nStreak: ${gameState.streak}\nRank: ${role.icon} ${role.title}\n\nCan you beat the market? 👇\n`;
+
             window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(txt)}&url=${location.href}`, '_blank');
         };
 
