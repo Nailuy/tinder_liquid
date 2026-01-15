@@ -13,6 +13,7 @@
             --accent-cyan: #00F0FF;
             --accent-green: #00FFA3;
             --accent-red: #FF2A6D;
+            --accent-yellow: #FFD700;
             --bg-dark: #050510;
             --text-primary: #ffffff;
             --text-secondary: #94a3b8;
@@ -97,17 +98,6 @@
             filter: drop-shadow(0 0 8px var(--accent-cyan));
         }
 
-        .tag {
-            font-size: 10px;
-            background: var(--accent-cyan);
-            color: #000;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 8px;
-            vertical-align: middle;
-            font-weight: 700;
-        }
-
         .hud-stats {
             display: flex;
             gap: 15px;
@@ -134,11 +124,6 @@
             font-family: 'JetBrains Mono';
         }
 
-        .unit {
-            font-size: 10px;
-            color: var(--text-secondary);
-        }
-
         /* Game Layout */
         .game-wrapper {
             flex: 1;
@@ -149,45 +134,66 @@
             perspective: 1000px;
         }
 
-        .order-book {
-            width: 160px;
-            height: 360px;
+        /* Liquidation Feed Sidebar */
+        .liq-feed {
+            width: 200px;
+            height: 400px;
             background: rgba(10, 15, 30, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             padding: 15px;
-            font-size: 11px;
+            font-size: 10px;
             font-family: 'JetBrains Mono';
             display: none;
-            /* Mobile hidden */
             backdrop-filter: blur(10px);
+            overflow: hidden;
         }
 
         @media(min-width: 900px) {
-            .order-book {
+            .liq-feed {
                 display: block;
             }
         }
 
-        .ob-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 2px 0;
-        }
-
-        .ob-row.ask span:first-child {
-            color: var(--accent-red);
-        }
-
-        .ob-row.bid span:first-child {
-            color: var(--accent-green);
-        }
-
-        .ob-spread {
-            color: var(--text-secondary);
+        .liq-feed-title {
             text-align: center;
-            margin: 10px 0;
-            opacity: 0.5;
+            margin-bottom: 10px;
+            color: var(--accent-red);
+            font-weight: bold;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .liq-item {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            animation: liqFade 0.5s ease-out;
+        }
+
+        .liq-item .liq-amount {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+
+        .liq-item .liq-leverage {
+            color: var(--accent-yellow);
+        }
+
+        .liq-item .liq-time {
+            color: var(--text-secondary);
+            font-size: 9px;
+        }
+
+        @keyframes liqFade {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Main Card */
@@ -316,7 +322,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s;
@@ -327,8 +333,15 @@
             pointer-events: all;
         }
 
+        .result-mascot {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin-bottom: 5px;
+        }
+
         #res-title {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 900;
             margin: 0;
         }
@@ -343,10 +356,15 @@
             text-shadow: 0 0 20px var(--accent-red);
         }
 
+        .timeout-color {
+            color: var(--accent-yellow);
+            text-shadow: 0 0 20px var(--accent-yellow);
+        }
+
         .res-msg {
             color: var(--text-secondary);
-            margin-bottom: 20px;
-            font-size: 14px;
+            margin-bottom: 15px;
+            font-size: 13px;
             text-align: center;
             padding: 0 20px;
         }
@@ -422,10 +440,6 @@
         }
 
         @media (max-width: 600px) {
-            .desktop-only {
-                display: none;
-            }
-
             .game-card {
                 padding: 20px;
             }
@@ -437,6 +451,11 @@
             .btn {
                 padding: 14px;
                 font-size: 14px;
+            }
+
+            .result-mascot {
+                width: 80px;
+                height: 80px;
             }
         }
     </style>
@@ -468,10 +487,10 @@
         </header>
 
         <main class="game-wrapper">
-            <!-- Order Book Sidebar -->
-            <div class="order-book">
-                <div style="text-align:center; margin-bottom:10px; color:#fff; font-weight:bold;">ORDER BOOK</div>
-                <div id="ob-content">
+            <!-- Liquidation Feed Sidebar -->
+            <div class="liq-feed">
+                <div class="liq-feed-title">🔥 LIVE LIQUIDATIONS</div>
+                <div id="liq-content">
                     <!-- Filled by JS -->
                 </div>
             </div>
@@ -503,6 +522,7 @@
 
                 <!-- Result Overlay -->
                 <div id="overlay" class="result-overlay hidden">
+                    <img id="res-mascot" class="result-mascot" src="" alt="Result">
                     <h2 id="res-title">LIQUIDATED</h2>
                     <p id="res-desc" class="res-msg">You lost everything.</p>
                     <div style="display:flex; gap:10px;">
@@ -593,35 +613,48 @@
         }
         fetchMarketData(); setInterval(fetchMarketData, 10000);
 
-        // --- 3. ORDER BOOK ---
-        function updateOrderBook() {
-            const obContent = document.getElementById('ob-content');
-            if (!obContent) return;
-            let html = '';
-            const priceBase = 42000 + Math.random() * 100;
-            for (let i = 0; i < 5; i++) {
-                const p = (priceBase + i + Math.random()).toFixed(2);
-                const size = (Math.random() * 2).toFixed(4);
-                html += `<div class="ob-row ask"><span>${p}</span><span>${size}</span></div>`;
+        // --- 3. LIQUIDATION FEED ---
+        const liqNames = ['0xDegen', 'whaleAlert', 'ser_ngmi', 'rugged.eth', 'buttcoin', 'diamond_hands', 'paperhands', 'moonboy99', '100x_or_rekt', 'tokenomics_fan', 'airdrop_hunter', 'gasless_ape', 'copium_dealer'];
+        const liqCoins = ['BTC', 'ETH', 'SOL', 'DOGE', 'PEPE', 'WIF', 'BONK', 'SHIB', 'ARB', 'OP'];
+
+        function addLiquidation() {
+            const liqContent = document.getElementById('liq-content');
+            if (!liqContent) return;
+
+            const name = liqNames[Math.floor(Math.random() * liqNames.length)];
+            const coin = liqCoins[Math.floor(Math.random() * liqCoins.length)];
+            const amount = (Math.random() * 500 + 10).toFixed(0);
+            const leverage = Math.floor(Math.random() * 100 + 5);
+            const side = Math.random() > 0.5 ? 'LONG' : 'SHORT';
+
+            const item = document.createElement('div');
+            item.className = 'liq-item';
+            item.innerHTML = `
+                <div><span class="liq-amount">-$${amount}K</span> <span class="liq-leverage">${leverage}x ${side}</span></div>
+                <div style="color:#aaa;">${name} on ${coin}</div>
+            `;
+
+            liqContent.insertBefore(item, liqContent.firstChild);
+
+            // Keep max 15 items
+            while (liqContent.children.length > 15) {
+                liqContent.removeChild(liqContent.lastChild);
             }
-            html += `<div class="ob-spread">--- SPREAD ---</div>`;
-            for (let i = 0; i < 5; i++) {
-                const p = (priceBase - i - Math.random()).toFixed(2);
-                const size = (Math.random() * 2).toFixed(4);
-                html += `<div class="ob-row bid"><span>${p}</span><span>${size}</span></div>`;
-            }
-            obContent.innerHTML = html;
         }
-        setInterval(updateOrderBook, 500);
+
+        // Initial feed
+        for (let i = 0; i < 8; i++) addLiquidation();
+        setInterval(addLiquidation, 2000);
 
         // --- 4. GAME LOGIC ---
-        let gameState = { scenario: null, streak: 0, pnl: 0, timer: null, chartState: null, isAnimating: false };
+        let gameState = { scenario: null, streak: 0, pnl: 0, timer: null, chartState: null, isAnimating: false, gameEnded: false };
 
         const els = {
             headline: document.getElementById('headline'),
             timerFill: document.getElementById('timer-fill'),
             overlay: document.getElementById('overlay'),
             resTitle: document.getElementById('res-title'),
+            resMascot: document.getElementById('res-mascot'),
             streak: document.getElementById('streak-val'),
             pnl: document.getElementById('pnl-val'),
             controls: document.getElementById('controls'),
@@ -631,6 +664,10 @@
 
         window.resetGame = () => {
             if (gameState.isAnimating) return;
+
+            // Clear any lingering timer
+            clearInterval(gameState.timer);
+            gameState.gameEnded = false;
 
             els.overlay.classList.add('hidden');
             gsap.to(els.controls, { opacity: 1, pointerEvents: 'all' });
@@ -661,17 +698,25 @@
             gsap.set(els.timerFill, { width: "100%", backgroundColor: "var(--accent-cyan)" });
 
             gameState.timer = setInterval(() => {
+                if (gameState.gameEnded) {
+                    clearInterval(gameState.timer);
+                    return;
+                }
                 t--;
                 gsap.to(els.timerFill, { width: (t / 15) * 100 + "%" });
                 if (t < 5) gsap.to(els.timerFill, { backgroundColor: "var(--accent-red)" });
-                if (t <= 0) endGame(false, "LIQUIDATED");
+                if (t <= 0) {
+                    clearInterval(gameState.timer);
+                    endGame(null, "TIMEOUT");
+                }
             }, 1000);
         }
 
         window.handleInteract = (choice) => {
-            if (gameState.isAnimating) return;
+            if (gameState.isAnimating || gameState.gameEnded) return;
             clearInterval(gameState.timer);
             gameState.isAnimating = true;
+            gameState.gameEnded = true;
 
             gsap.to(els.controls, { opacity: 0.5, pointerEvents: 'none' });
 
@@ -694,24 +739,41 @@
         };
 
         function endGame(isWin, reason) {
-            if (isWin) {
+            // Prevent multiple calls
+            clearInterval(gameState.timer);
+            gameState.gameEnded = true;
+
+            gsap.to(els.controls, { opacity: 0.2, pointerEvents: 'none' });
+
+            if (reason === "TIMEOUT") {
+                // Timeout state
+                gameState.streak = 0;
+                gameState.pnl -= 1000;
+                els.resTitle.innerHTML = `<span class="timeout-color">TIME'S UP</span>`;
+                els.resMascot.src = './SVG/resting.png';
+                material.color.setHex(0xFFD700);
+                document.getElementById('res-desc').innerText = "You hesitated. The market waits for no one.";
+            } else if (isWin) {
                 gameState.streak++;
                 gameState.pnl += Math.floor(Math.random() * 2000) + 500;
                 els.resTitle.innerHTML = `<span class="win-color">PROFIT ${gameState.scenario.roi}</span>`;
+                els.resMascot.src = './SVG/running.png';
                 material.color.setHex(0x00FFA3);
+                document.getElementById('res-desc').innerText = gameState.scenario.msg;
             } else {
                 gameState.streak = 0;
                 gameState.pnl -= 1000;
-                els.resTitle.innerHTML = `<span class="lose-color">${reason || "REKT"}</span>`;
+                els.resTitle.innerHTML = `<span class="lose-color">REKT</span>`;
+                els.resMascot.src = './SVG/sitting.png';
                 material.color.setHex(0xFF2A6D);
+                document.getElementById('res-desc').innerText = gameState.scenario.msg;
             }
 
-            document.getElementById('res-desc').innerText = gameState.scenario.msg;
             els.streak.innerText = gameState.streak;
             els.pnl.innerText = "$" + gameState.pnl;
 
             els.overlay.classList.remove('hidden');
-            gsap.delayedCall(1, () => material.color.setHex(0x00F0FF));
+            gsap.delayedCall(1.5, () => material.color.setHex(0x00F0FF));
         }
 
         window.shareResult = () => {
